@@ -1,0 +1,10 @@
+<!---->
+<launch>
+  
+
+	<node pkg="opencv_test" type="opencv_test" name="test" output="screen">
+		<param name="image_raw" value="/usb_cam/image_raw"/>
+		<param name="image_out" value="/test_image_out"/>
+	</node>
+
+</launch>
