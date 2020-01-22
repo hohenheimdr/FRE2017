@@ -1,0 +1,42 @@
+<!---->
+<launch>
+
+<node pkg="usb_relais" name="usb_relais" type="usb_relais" output="screen" respawn="true">
+			<param name="relais_1" value="/horn" />	 
+			<param name="relais_2" value="/nozzle_1" />
+			<param name="relais_3" value="/nozzle_2" />	
+			<param name="relais_4" value="/nozzle_3" />		
+		</node> 
+
+<node pkg="usb_relais" name="time_activation_golf_ball" type="activate_relais">
+			<param name="input_signal" value="/Golfball" />	 
+			<param name="waittime" value="0.2" />	 
+			<param name="output_signal" value="/horn" />	 
+</node>	
+
+<node pkg="usb_relais" name="time_activation_tennis_ball" type="activate_relais">
+		 	<param name="input_signal" value="tennis_ball"/>	 
+			<param name="waittime" value="5" />	 
+			<param name="output_signal" value="/horn" />	 
+</node>
+<node pkg="usb_relais" name="time_activation_nozzle1" type="activate_relais">
+		 	<param name="input_signal" value="/right_sprayer"/>	 
+			<param name="waittime" value="1" />	 
+			<param name="output_signal" value="/nozzle_3" />	 
+</node>
+
+<node pkg="usb_relais" name="time_activation_nozzle2" type="activate_relais">
+		 	<param name="input_signal" value="/left_sprayer"/>	 
+			<param name="waittime" value="1" />	 
+			<param name="output_signal" value="/nozzle_1" />	 
+</node>
+
+
+<node pkg="usb_relais" name="time_activation_nozzle3" type="activate_relais">
+		 	<param name="input_signal" value="/middle_sprayer"/>	 
+			<param name="waittime" value="1" />	 
+			<param name="output_signal" value="/nozzle_2" />	 
+</node>
+			
+
+</launch>
