@@ -14,8 +14,7 @@
 #include "nav_msgs/Odometry.h"
 #include <math.h>
 #include "geometry_msgs/Twist.h"
-#include <tf/transform_listener.h>
-
+#include "tf/LinearMath/Quaternion.h"
 
 // short description:
 //reads in the two poses of left and right row, and gives out a tf_ transform for the 
@@ -24,7 +23,14 @@
 //author: David Reiser
 
 //input: offset_x defines the distance of the goal
-//offset_y descripe an additional offset to the y value of the goal
+//offset_y descripe a additional offest to the y value of the goal
+//dr 	6.6.17	corrected quaternion error with frame_id
+//dr	7.8.17	corrected error with position to get better estimation of point in twisted rows
+
+//dr 	13.5.20 included robot width for better headland exit
+
+
+
 
 
 class TF_PUBLISHER
@@ -35,23 +41,38 @@ class TF_PUBLISHER
 public:																					//Bestimmung der Variablen
 
 	tf::TransformBroadcaster br;
-	tf::TransformListener li;
-	double offset_x,offset_y,robot_width;
-	std::string tf_name;
-
-	geometry_msgs::PoseStamped left_row, right_row,result_pose, zero_pose, transformed_row;
-	
+	double offset_x,offset_y, robot_width;
+	std::string tf_name,frame_id;
+	geometry_msgs::PoseStamped left_row, right_row,result_pose, zero_pose;
 	ros::Publisher headland_pub;
 	
 	TF_PUBLISHER()
 	{
+		
 		zero_pose.pose.position.x=0;
 		zero_pose.pose.position.y=0;
 		zero_pose.pose.position.z=0;
 		zero_pose.pose.orientation.x=0;
 		zero_pose.pose.orientation.y=0;
 		zero_pose.pose.orientation.z=0;
-		zero_pose.pose.orientation.w=0;
+		zero_pose.pose.orientation.w=1;
+
+		left_row.pose.position.x=0;
+		left_row.pose.position.y=0;
+		left_row.pose.position.z=0;
+		left_row.pose.orientation.x=0;
+		left_row.pose.orientation.y=0;
+		left_row.pose.orientation.z=0;
+		left_row.pose.orientation.w=1;
+
+		right_row.pose.position.x=0;
+		right_row.pose.position.y=0;
+		right_row.pose.position.z=0;
+		right_row.pose.orientation.x=0;
+		right_row.pose.orientation.y=0;
+		right_row.pose.orientation.z=0;
+		right_row.pose.orientation.w=1;
+
 	}
 	
 	~ TF_PUBLISHER()
@@ -77,71 +98,60 @@ public:																					//Bestimmung der Variablen
 		std_msgs::Bool headland;
 		//check that at least one row was detected!
 	    if(right_row.pose.position.y!=0 || left_row.pose.position.y!=0)
-	    {	
+	    {	 
 			//do some error handling if one side detected no line..
-			if(right_row.pose.position.y==0) 
-				right_row.pose.position.y=-(robot_width/2.0);
-			if(left_row.pose.position.y==0) 
-				left_row.pose.position.y=(robot_width/2.0);
-				
+			if(right_row.pose.position.y==0){
+					right_row.pose.orientation=left_row.pose.orientation;
+					right_row.pose.position.y=-(robot_width/2.0);
+				}
+			if(left_row.pose.position.y==0) {
+					left_row.pose.orientation=right_row.pose.orientation;
+					left_row.pose.position.y=(robot_width/2.0);
+				}
 		result_pose.header.stamp=ros::Time::now();
-		result_pose.header.frame_id=left_row.header.frame_id;
-		result_pose.pose.position.x=offset_x; //(left_row.pose.position.x+right_row.pose.position.x)/2+ offset_x;
-		result_pose.pose.position.y=(left_row.pose.position.y+right_row.pose.position.y)/2+offset_y;
+		result_pose.header.frame_id=frame_id;
+			
+		result_pose.pose.orientation.x=(left_row.pose.orientation.x+right_row.pose.orientation.x)/2;
+		result_pose.pose.orientation.y=(left_row.pose.orientation.y+right_row.pose.orientation.y)/2;
+		result_pose.pose.orientation.z=(left_row.pose.orientation.z+right_row.pose.orientation.z)/2;
+		result_pose.pose.orientation.w=(left_row.pose.orientation.w+right_row.pose.orientation.w)/2;
+		//normalize the vector
+		double length=sqrt(result_pose.pose.orientation.x*result_pose.pose.orientation.x+result_pose.pose.orientation.y*result_pose.pose.orientation.y+
+		result_pose.pose.orientation.z*result_pose.pose.orientation.z+result_pose.pose.orientation.w*result_pose.pose.orientation.w);
+		result_pose.pose.orientation.x=result_pose.pose.orientation.x/length;
+		result_pose.pose.orientation.y=result_pose.pose.orientation.y/length;
+		result_pose.pose.orientation.z=result_pose.pose.orientation.z/length;
+		result_pose.pose.orientation.w=result_pose.pose.orientation.w/length;
+		
+		//solve position
+		result_pose.pose.position.x=offset_x;
+		//result_pose.pose.position.y=(left_row.pose.position.y+right_row.pose.position.y)/2+offset_y;
+		result_pose.pose.position.y=(result_pose.pose.orientation.z/result_pose.pose.orientation.w)*(offset_x-(left_row.pose.position.x+right_row.pose.position.x)/2)+(left_row.pose.position.y+right_row.pose.position.y)/2;
 		result_pose.pose.position.z=0;
-		result_pose.pose.orientation.x=0; //(left_row.pose.orientation.x+right_row.pose.orientation.x)/2;
-		result_pose.pose.orientation.y=0; //(left_row.pose.orientation.y+right_row.pose.orientation.y)/2;
-		result_pose.pose.orientation.z=0; //(left_row.pose.orientation.z+right_row.pose.orientation.z)/2;
-		result_pose.pose.orientation.w=1; //(left_row.pose.orientation.w+right_row.pose.orientation.w)/2;
-		//PublishTransform(result_pose);
-		TransformRightPoseToRowPoint();
-		TransformResultPose();
+				
 		PublishTransform(result_pose);
 		headland.data=false;
 		headland_pub.publish(headland);
 		}else
 		{
-			ROS_INFO("error with line detection" );
+			
 			zero_pose.header.stamp=ros::Time::now();
-			zero_pose.header.frame_id=left_row.header.frame_id;
+			zero_pose.header.frame_id=frame_id;
+			PublishTransform(zero_pose);
 			PublishTransform(zero_pose);
 			//publish that headland was detected!
+			
 			headland.data=true;
 			headland_pub.publish(headland);		
-			PublishTransform(zero_pose);
-			sleep(1);
 			
 		}
-	}
-	
-	void TransformRightPoseToRowPoint()
-	{
-		//transform_row to row_point coordinate system
-		//this program tries first to transform the ball to the odom frame...
-			try{
-						tf::StampedTransform transform;
-						//need to transform the ball from the robot camera position to the fixed position
-						//ROS_INFO("adding a relative transform to goal!");
-						li.waitForTransform(right_row.header.frame_id,tf_name,ros::Time(0),ros::Duration(3.0));		
-						//li.lookupTransform(right_row.header.frame_id,tf_name,ros::Time(0), transform);	
-						li.transformPose(tf_name,ros::Time(0),right_row,right_row.header.frame_id,transformed_row);
-					}catch(...)
-					{
-						ROS_INFO("error trying relative goal transform");
-					}
-	}
-	
-	void TransformResultPose()
-	{
-		//Transform the pose of row point the the needed distance...
-		//result_pose=transformed_row;
-		std::cout<<"distance_right row" <<transformed_row.pose.position.y<<std::endl;
+		
 	}
 	
 	void PublishTransform(geometry_msgs::PoseStamped in)
 	{
 			row_goal.header.stamp=ros::Time::now();
-			row_goal.header.frame_id=in.header.frame_id;
+			row_goal.header.frame_id=frame_id;
 			row_goal.child_frame_id =tf_name;
 			row_goal.transform.translation.x= in.pose.position.x;
 			row_goal.transform.translation.y= in.pose.position.y;
@@ -171,15 +181,15 @@ ros::NodeHandle a("~");
 	a.param<std::string>("pose_right",pose_right, "/ransac_right_pose");
 	a.param<std::string>("headland_out",headland,"/headland");
 	a.param<std::string>("tf_name",b.tf_name,"/row_tf");
+	a.param<std::string>("frame_id",b.frame_id,"/base_link");
 	a.param<double>("frequency",frequency,5);
 	a.param<double>("offset_x",b.offset_x,1.0);
-	//parameter for setting the goal point when one row was not detected (start parameter for the phoenix)
 	a.param<double>("robot_width",b.robot_width,0.5);
 	
-	ros::Subscriber sub_left_r = a.subscribe(pose_left,1, &TF_PUBLISHER::Position_left, &b); 		
-	ros::Subscriber sub_right_r = a.subscribe(pose_right,1, &TF_PUBLISHER::Position_right, &b); 	
+	ros::Subscriber sub_left_r = a.subscribe(pose_left,50, &TF_PUBLISHER::Position_left, &b); 		
+	ros::Subscriber sub_right_r = a.subscribe(pose_right,50, &TF_PUBLISHER::Position_right, &b); 	
 
-	b.headland_pub=a.advertise<std_msgs::Bool>(headland.c_str(), 1);				  	 		//Publizierung der Headlanderkennung im Topic
+	b.headland_pub=a.advertise<std_msgs::Bool>(headland.c_str(), 50);				  	 		//Publizierung der Headlanderkennung im Topic
 	
 	ros::Timer t = a.createTimer(ros::Duration(1.0/frequency),&TF_PUBLISHER::Compare,&b);
 	
