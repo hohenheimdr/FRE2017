@@ -176,10 +176,10 @@ ros::NodeHandle a("~");
 	//parameter for setting the goal point when one row was not detected (start parameter for the phoenix)
 	a.param<double>("robot_width",b.robot_width,0.5);
 	
-	ros::Subscriber sub_left_r = a.subscribe(pose_left,50, &TF_PUBLISHER::Position_left, &b); 		
-	ros::Subscriber sub_right_r = a.subscribe(pose_right,50, &TF_PUBLISHER::Position_right, &b); 	
+	ros::Subscriber sub_left_r = a.subscribe(pose_left,1, &TF_PUBLISHER::Position_left, &b); 		
+	ros::Subscriber sub_right_r = a.subscribe(pose_right,1, &TF_PUBLISHER::Position_right, &b); 	
 
-	b.headland_pub=a.advertise<std_msgs::Bool>(headland.c_str(), 50);				  	 		//Publizierung der Headlanderkennung im Topic
+	b.headland_pub=a.advertise<std_msgs::Bool>(headland.c_str(), 1);				  	 		//Publizierung der Headlanderkennung im Topic
 	
 	ros::Timer t = a.createTimer(ros::Duration(1.0/frequency),&TF_PUBLISHER::Compare,&b);
 	
