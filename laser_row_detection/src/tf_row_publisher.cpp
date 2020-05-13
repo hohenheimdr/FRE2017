@@ -124,7 +124,7 @@ public:																					//Bestimmung der Variablen
 		//solve position
 		result_pose.pose.position.x=offset_x;
 		//result_pose.pose.position.y=(left_row.pose.position.y+right_row.pose.position.y)/2+offset_y;
-		result_pose.pose.position.y=(result_pose.pose.orientation.z/result_pose.pose.orientation.w)*(offset_x-(left_row.pose.position.x+right_row.pose.position.x)/2)+(left_row.pose.position.y+right_row.pose.position.y)/2;
+		result_pose.pose.position.y=(result_pose.pose.orientation.z/result_pose.pose.orientation.w)*(offset_x-(left_row.pose.position.x+right_row.pose.position.x)/2)+(left_row.pose.position.y+right_row.pose.position.y)/2+offset_y;
 		result_pose.pose.position.z=0;
 				
 		PublishTransform(result_pose);
@@ -158,8 +158,7 @@ public:																					//Bestimmung der Variablen
 			row_goal.transform.rotation.y = in.pose.orientation.y;
 			row_goal.transform.rotation.z = in.pose.orientation.z;
 			row_goal.transform.rotation.w = in.pose.orientation.w;
-			br.sendTransform(row_goal);	
-			
+			br.sendTransform(row_goal);		
 	}
 	
 	
@@ -182,9 +181,10 @@ ros::NodeHandle a("~");
 	a.param<std::string>("frame_id",b.frame_id,"/base_link");
 	a.param<double>("frequency",frequency,5);
 	a.param<double>("offset_x",b.offset_x,1.0);
+	a.param<double>("offset_y",b.offset_y,0.0);
 	
-	ros::Subscriber sub_left_r = a.subscribe(pose_left,50, &TF_PUBLISHER::Position_left, &b); 		
-	ros::Subscriber sub_right_r = a.subscribe(pose_right,50, &TF_PUBLISHER::Position_right, &b); 	
+	ros::Subscriber sub_left_r = a.subscribe(pose_left,1, &TF_PUBLISHER::Position_left, &b); 		
+	ros::Subscriber sub_right_r = a.subscribe(pose_right,1, &TF_PUBLISHER::Position_right, &b); 	
 
 	b.headland_pub=a.advertise<std_msgs::Bool>(headland.c_str(), 50);				  	 		//Publizierung der Headlanderkennung im Topic
 	
