@@ -1,125 +1,188 @@
-<!---->
-<launch>
-<!-- Erstellung und  Vorfilterung der PointClouds in relevante Bereiche für RANSAC -->
+#include <ros/ros.h>
+#include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/TransformStamped.h"
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
+#include "std_msgs/Float64.h"
+#include "std_msgs/Float32.h"
+#include <ros/subscriber.h>
+#include "geometry_msgs/TwistStamped.h"
+#include "geometry_msgs/Twist.h"
+#include "geometry_msgs/PoseStamped.h"
+#include "std_msgs/Bool.h"
+#include <std_msgs/Float64MultiArray.h>
+#include "nav_msgs/Odometry.h"
+#include <math.h>
+#include "geometry_msgs/Twist.h"
+#include <tf/transform_listener.h>
 
-  <node pkg="pointcloud_plantdetector" type="laser_row_filter" name="left_row_filter">
-		<param name="cloud_in" value="/front_cloud_filtered" />
-		<param name="frame_id" value="/base_link" />
-		<param name="filtered_cloud" value="/left_row_test" />
-		<param name="plants_pub" value="/left_row" />
-		
-		<param name="use_box_filter" value="true" />
-		<param name="x_min" value="-0.3" />
-		<param name="y_min" value="0.0" />
-		<param name="z_min" value="-1.5" />
-		<param name="x_max" value="0.6" />
-		<param name="y_max" value="0.8" />
-		<param name="z_max" value="1" />
-		<param name="remove_plane" value="false" />
-		<param name="use_radius_outlier_filter" value="false" />
-		<param name="neighbour_nr" value="1" />
-		<param name="use_statistical_outlier_filter" value="false" />
-		<param name="push_to_plane" value="false" />
-		<param name="use_eucledian_cluster" value="false" />
-		<param name="cluster_distance" value="0.5" />
-		
-		<param name="use_mincluster" value="false" />		
-</node>
 
- <node pkg="pointcloud_plantdetector" type="laser_row_filter" name="right_row_filter">
-		<param name="cloud_in" value="/front_cloud_filtered" />
-		<param name="frame_id" value="/base_link" />
-		<param name="filtered_cloud" value="/right_row_test" />
-		<param name="plants_pub" value="/right_row" />
+// short description:
+//reads in the two poses of left and right row, and gives out a tf_ transform for the 
+//point follower out. In the ideal case, it is in a defined distance to the robot base...
+//date 2.6.16
+//author: David Reiser
 
-		<param name="use_box_filter" value="true" />
-		<param name="x_min" value="-0.3" />
-		<param name="y_min" value="-0.8" />
-		<param name="z_min" value="-1" />
-		<param name="x_max" value="0.6" />
-		<param name="y_max" value="0.0" />
-		<param name="z_max" value="1" />	
-		<param name="remove_plane" value="false" />
-		<param name="use_radius_outlier_filter" value="false" />
-		<param name="neighbour_nr" value="3" />
-		<param name="use_statistical_outlier_filter" value="false" />
-		<param name="push_to_plane" value="false" />
-		<param name="use_eucledian_cluster" value="false" />
-		<param name="cluster_distance" value="0.5" />
-		<param name="use_mincluster" value="false" />		
-</node>
+//input: offset_x defines the distance of the goal
+//offset_y descripe an additional offset to the y value of the goal
 
-<!-- RANSAC: Erstellung von Geradengleichung und Pose zur Reihenerkennung -->
 
-  <node pkg="laser_row_detection" type="ransac_line_generator" name="line_generator_left" >
-    <param name="cloud_in" value="/left_row"/>
-    <param name="row_out" value="/line_pose_left"/>    
-    <param name="frame_id" value="/base_link"/>
-    <param name="mean_value" value="1"/>
-    <param name="iterations" value="1000"/>
-    <param name="add_points" value="1"/>
-    <param name="distance" value="0.01"/>
-    <param name="left_row" value="true"/>
-    
-  </node>
-  
-  <node pkg="laser_row_detection" type="ransac_line_generator" name="line_generator_right" >
-    <param name="cloud_in" value="/right_row"/>
-    <param name="row_out" value="/line_pose_right"/>    
-    <param name="frame_id" value="/base_link"/>
-    <param name="mean_value" value="1"/>
-    <param name="iterations" value="1000"/>
-    <param name="add_points" value="1"/>
-    <param name="distance" value="0.01"/>
-    <param name="left_row" value="false"/>
-
-  </node>
-
-<!-- Ermittlung des Korrekturwertes zur Navigation zwischen zwei Pflanzenreihen -->
-##get out a speed value
-
- <node pkg="laser_row_detection" type="tf_row_publisher"  name="cmdvel_laser_correction">
-    <param name="pose_right" value="/line_pose_right"/>
-    <param name="pose_left" value="/line_pose_left"/>
-    <param name="tf_name" value="row_point"/>
-    <param name="frequency" value="5"/>
-    <param name="offset_x" value="0.2"/>
-    <param name="offset_y" value="0.02"/>
-    <param name="robot_width" value="0.5"/>
-    <param name="headland_out" value="/headland_detected"/>
-  </node>
-
+class TF_PUBLISHER
+{
+	private:
+	geometry_msgs::TransformStamped row_goal;
 	
-	<node pkg="basic_navigation" name="row_follower" type="point_follower">
-		    <param name="cmd_vel_topic_id" value="/cmd_vel"/>
-		    <param name="rabbit_frame_id" value="row_point"/>
-		    <param name="vehicle_frame_id" value="base_link"/>
-		    <param name="goal_reached" value="/movement_finished_row"/>
-		   ##variables floor indoors... need a change for outdoor condition
- 		   
-		###defines when the algorithm tries to change the angle difference
- 		    <param name="angle_react_thresh" value="0.03"/>
-		## start angle when the vehicle starts moving... to not get a extreme turn....
-		    <param name="start_moving_angle" value="0.1"/>
-		## when goal is not reachable for 0.2 seconds skip goal
-		    <param name="time_offset" value="0.15"/>
-		
-		 ###distance acceptable for goalpoint
-		<param name="dist_thresh" value="0.1"/>
-		###biggest acceptable error for angle difference
- 		<param name="angle_thresh" value="0.03"/>
-		 
-		<param name="speed_min" value="0.1"/>	
- 		### what value always should get started with... (start moving condition) 
-		<param name="angle_speed_min" value="0.2"/>	
-		<param name="speed_max" value="0.2"/>	<!--0.7-->
-		<param name="angle_speed_max" value="0.8"/>		<!--2.0-->
-		<param name="use_PID_for_turn" value="false"/>
-		<param name="P" value="2.0"/>
-		<param name="I" value="0.0"/>
-		<param name="D" value="0.0"/>
-		<param name="max_integral" value="0"/>
-		  
-	</node>
+public:																					//Bestimmung der Variablen
 
-</launch>
+	tf::TransformBroadcaster br;
+	tf::TransformListener li;
+	double offset_x,offset_y,robot_width;
+	std::string tf_name;
+
+	geometry_msgs::PoseStamped left_row, right_row,result_pose, zero_pose, transformed_row;
+	
+	ros::Publisher headland_pub;
+	
+	TF_PUBLISHER()
+	{
+		zero_pose.pose.position.x=0;
+		zero_pose.pose.position.y=0;
+		zero_pose.pose.position.z=0;
+		zero_pose.pose.orientation.x=0;
+		zero_pose.pose.orientation.y=0;
+		zero_pose.pose.orientation.z=0;
+		zero_pose.pose.orientation.w=0;
+	}
+	
+	~ TF_PUBLISHER()
+	{}
+	
+	void Position_left (const geometry_msgs::PoseStamped::ConstPtr& msg)				//Einlesen und Umbenennen der Variablen aus Ransac Filter Linke Seite
+	{
+		left_row=*msg;
+	}
+	
+	void Position_right (const geometry_msgs::PoseStamped::ConstPtr& msg)				//Einlesen und Umbenennen der Variablen aus Ransac Filter Rechte Seite
+	{
+		right_row=*msg;
+	}
+	
+	double fabs(double input)															//Bildung des Betrages vom Input 
+	{
+		return sqrt(input*input);
+	}
+	
+	void Compare(const ros::TimerEvent& e)												
+	{
+		std_msgs::Bool headland;
+		//check that at least one row was detected!
+	    if(right_row.pose.position.y!=0 || left_row.pose.position.y!=0)
+	    {	
+			//do some error handling if one side detected no line..
+			if(right_row.pose.position.y==0) 
+				right_row.pose.position.y=-(robot_width/2.0);
+			if(left_row.pose.position.y==0) 
+				left_row.pose.position.y=(robot_width/2.0);
+				
+		result_pose.header.stamp=ros::Time::now();
+		result_pose.header.frame_id=left_row.header.frame_id;
+		result_pose.pose.position.x=offset_x; //(left_row.pose.position.x+right_row.pose.position.x)/2+ offset_x;
+		result_pose.pose.position.y=(left_row.pose.position.y+right_row.pose.position.y)/2+offset_y;
+		result_pose.pose.position.z=0;
+		result_pose.pose.orientation.x=0; //(left_row.pose.orientation.x+right_row.pose.orientation.x)/2;
+		result_pose.pose.orientation.y=0; //(left_row.pose.orientation.y+right_row.pose.orientation.y)/2;
+		result_pose.pose.orientation.z=0; //(left_row.pose.orientation.z+right_row.pose.orientation.z)/2;
+		result_pose.pose.orientation.w=1; //(left_row.pose.orientation.w+right_row.pose.orientation.w)/2;
+		//PublishTransform(result_pose);
+		TransformRightPoseToRowPoint();
+		TransformResultPose();
+		PublishTransform(result_pose);
+		headland.data=false;
+		headland_pub.publish(headland);
+		}else
+		{
+			ROS_INFO("error with line detection" );
+			zero_pose.header.stamp=ros::Time::now();
+			zero_pose.header.frame_id=left_row.header.frame_id;
+			PublishTransform(zero_pose);
+			//publish that headland was detected!
+			headland.data=true;
+			headland_pub.publish(headland);		
+			PublishTransform(zero_pose);
+			sleep(1);
+			
+		}
+	}
+	
+	void TransformRightPoseToRowPoint()
+	{
+		//transform_row to row_point coordinate system
+		//this program tries first to transform the ball to the odom frame...
+			try{
+						tf::StampedTransform transform;
+						//need to transform the ball from the robot camera position to the fixed position
+						//ROS_INFO("adding a relative transform to goal!");
+						li.waitForTransform(right_row.header.frame_id,tf_name,ros::Time(0),ros::Duration(3.0));		
+						//li.lookupTransform(right_row.header.frame_id,tf_name,ros::Time(0), transform);	
+						li.transformPose(tf_name,ros::Time(0),right_row,right_row.header.frame_id,transformed_row);
+					}catch(...)
+					{
+						ROS_INFO("error trying relative goal transform");
+					}
+	}
+	
+	void TransformResultPose()
+	{
+		//Transform the pose of row point the the needed distance...
+		//result_pose=transformed_row;
+		std::cout<<"distance_right row" <<transformed_row.pose.position.y<<std::endl;
+	}
+	
+	void PublishTransform(geometry_msgs::PoseStamped in)
+	{
+			row_goal.header.stamp=ros::Time::now();
+			row_goal.header.frame_id=in.header.frame_id;
+			row_goal.child_frame_id =tf_name;
+			row_goal.transform.translation.x= in.pose.position.x;
+			row_goal.transform.translation.y= in.pose.position.y;
+			row_goal.transform.translation.z= in.pose.position.z;
+			row_goal.transform.rotation.x = in.pose.orientation.x;
+			row_goal.transform.rotation.y = in.pose.orientation.y;
+			row_goal.transform.rotation.z = in.pose.orientation.z;
+			row_goal.transform.rotation.w = in.pose.orientation.w;
+			br.sendTransform(row_goal);	
+			
+	}
+	
+	
+};
+
+int main(int argc, char** argv)
+{
+
+ros::init(argc, argv, "ransac");
+
+ros::NodeHandle a("~");
+
+ TF_PUBLISHER b;
+ double frequency;
+ std::string pose_left,pose_right,correction, headland,twist;
+	a.param<std::string>("pose_left",pose_left, "/ransac_left_pose");
+	a.param<std::string>("pose_right",pose_right, "/ransac_right_pose");
+	a.param<std::string>("headland_out",headland,"/headland");
+	a.param<std::string>("tf_name",b.tf_name,"/row_tf");
+	a.param<double>("frequency",frequency,5);
+	a.param<double>("offset_x",b.offset_x,1.0);
+	//parameter for setting the goal point when one row was not detected (start parameter for the phoenix)
+	a.param<double>("robot_width",b.robot_width,0.5);
+	
+	ros::Subscriber sub_left_r = a.subscribe(pose_left,50, &TF_PUBLISHER::Position_left, &b); 		
+	ros::Subscriber sub_right_r = a.subscribe(pose_right,50, &TF_PUBLISHER::Position_right, &b); 	
+
+	b.headland_pub=a.advertise<std_msgs::Bool>(headland.c_str(), 50);				  	 		//Publizierung der Headlanderkennung im Topic
+	
+	ros::Timer t = a.createTimer(ros::Duration(1.0/frequency),&TF_PUBLISHER::Compare,&b);
+	
+	ros::spin();
+	
+}
