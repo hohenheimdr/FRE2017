@@ -571,7 +571,7 @@ int main(int argc, char** argv)
 
 	
 	ball.image1=n.advertise<sensor_msgs::Image>(out1.c_str(),100);
-	ball.image2=n.advertisepubp(out2.c_str(),100);
+	ball.image2=n.advertise<sensor_msgs::Image>(out2.c_str(),100);
 	ball.cloud_pub=n.advertise<sensor_msgs::PointCloud2>(cloud_out.c_str(), 1);
 	ball.balldetect_pub=n.advertise<std_msgs::Bool>(balldetect_out.c_str(), 10);
 	ball.ballInAreaL_pub=n.advertise<std_msgs::Bool>(ballInAreaL_out.c_str(), 10);
