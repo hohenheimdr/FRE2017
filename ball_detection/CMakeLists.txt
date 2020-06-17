@@ -6,7 +6,7 @@ project(ball_detection)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  usb_cam
+  #usb_cam
   cv_bridge
   tf
   sensor_msgs
@@ -15,13 +15,15 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
 )
 
-find_package( PCL REQUIRED )
+find_package(PCL REQUIRED)
+find_package(OpenCV REQUIRED)
+
+include_directories(
+${catkin_INCLUDE_DIRS} 
+)
 
 catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES ball_detection
   CATKIN_DEPENDS roscpp
-#  DEPENDS system_lib
 )
 
 ###########
@@ -46,5 +48,4 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable(ball_detection src/ball_detection.cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(ball_detection   ${catkin_LIBRARIES} ${PCL_LIBRARIES} )
-
+target_link_libraries(ball_detection ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES} )
